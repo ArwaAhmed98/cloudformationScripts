@@ -1,0 +1,309 @@
+# Infrastructure as Code 
+# Exercise solution
+# Carlos Rivas February 2021
+#_____________________________________________________________
+#_____________________________________________________________
+
+Outputs:
+  MainVPC:
+    Description: A CIRD for the created MainVPC
+    Value: !Ref MainVPCCIDR
+    EXPORT:
+      Name: !Sub ${EnvironmentName}-MainVPC
+  PublicSubnet1:
+    Description: A CIRD for the SUBNET
+    Value: !Ref Pub1SubnetCIDR
+    EXPORT:
+      Name: !Sub ${EnvironmentName}-Pub1SubnetCIDR
+      #mmkn tb2a !ref L Pub1SubnetCIDR da ?
+
+#_____________________________________________________________
+#_____________________________________________________________
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Creates the required network infrastructure for Public and Private routing with Internet access
+#_____________________________________________________________
+#_____________________________________________________________
+
+Parameters:
+  VPCCIDR:
+    Type: String
+  PrivSubnetCIDR:
+    Type: String
+  PubSubnetCIDR:
+    Type: String
+#_____________________________________________________________
+#_____________________________________________________________
+Resources:
+#_____________________________________________________________
+#_____________________________________________________________
+
+  MainVPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsHostnames: true
+      Tags: 
+        - Key: Name
+          Value: "Main VPC"
+#_____________________________________________________________
+#_____________________________________________________________
+
+  InternetGW:
+    Type: AWS::EC2::InternetGateway
+#_____________________________________________________________
+#_____________________________________________________________
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Tags: 
+        - Key: Name
+          Value: "MY IGW"
+    Properties:
+      VpcId: !Ref MainVPC
+      InternetGatewayId: !Ref InternetGW
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      # Availability zone at your discretion or
+      # as a parameter
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref Pub1SubnetCIDR
+      MapPublicIpOnLaunch: true
+      Tags: 
+        - Key: Name
+          Value: "Public Subnet AZ1"
+      VpcId: !Ref MainVPC
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      # Availability zone at your discretion or
+      # as a parameter
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref Pub2SubnetCIDR
+      MapPublicIpOnLaunch: true
+      Tags: 
+        - Key: Name
+          Value: "Public Subnet AZ1"
+      VpcId: !Ref MainVPC
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref Priv1SubnetCIDR
+      MapPublicIpOnLaunch: false
+      Tags: 
+        - Key: Name
+          Value: "Private Subnet AZ1"
+      VpcId: !Ref MainVPC
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref Priv2SubnetCIDR
+      MapPublicIpOnLaunch: false
+      Tags: 
+        - Key: Name
+          Value: "Private Subnet AZ1"
+      VpcId: !Ref MainVPC
+#_____________________________________________________________
+#_____________________________________________________________ 
+
+  NAT1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+        AllocationId:
+          Fn::GetAtt:
+          - EIP
+          - AllocationId
+        SubnetId: !Ref PublicSubnet1
+        Tags:
+        - Key: Name
+          Value: "NAT to be used by servers in the private subnet"
+#_____________________________________________________________
+#_____________________________________________________________
+
+  NatGateway1: 
+      Type: AWS::EC2::NatGateway
+      Properties: 
+          AllocationId: !GetAtt NatGateway1EIP.AllocationId
+          SubnetId: !Ref PublicSubnet1
+#_____________________________________________________________ 
+  NatGateway2: 
+      Type: AWS::EC2::NatGateway
+      Properties:
+          AllocationId: !GetAtt NatGateway2EIP.AllocationId
+          SubnetId: !Ref PublicSubnet2
+#_____________________________________________________________
+#_____________________________________________________________
+
+NatGateway1EIP:
+      Type: AWS::EC2::EIP
+      DependsOn: InternetGatewayAttachment
+      Properties: 
+          Domain: vpc
+#_____________________________________________________________
+
+  NatGateway2EIP:
+      Type: AWS::EC2::EIP
+      DependsOn: InternetGatewayAttachment
+      Properties:
+          Domain: vpc
+#_____________________________________________________________
+#_____________________________________________________________
+
+NatGateway2EIP:
+      Type: AWS::EC2::EIP
+      DependsOn: InternetGatewayAttachment
+      Properties: 
+          Domain: vpc
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: "Private Route Table"
+      VpcId: !Ref MainVPC
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: "Public Route Table"
+      VpcId: !Ref MainVPC
+  #_____________________________________________________________
+  #_____________________________________________________________
+
+  AssociatePUBRT:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+#_____________________________________________________________
+#_____________________________________________________________
+
+  AssociatePRIVRT:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PublicInternetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId:
+         Ref: PublicRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId:
+         Ref: InternetGW
+#_____________________________________________________________
+#_____________________________________________________________
+
+  PrivateInternetOutboundRoute:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId:
+         Ref: PrivateRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       NatGatewayId:
+         Ref: NAT
+#_____________________________________________________________
+#_____________________________________________________________
+
+## ec2 located in the private subnet 
+# Server EC2 Instance ITSELF IS HEREEEEE 
+  ServerInstance: 
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.medium
+      ImageId: !Ref AMItoUse
+      IamInstanceProfile: !Ref ServerInstanceProfile
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet: 
+            - Ref: "WebAccessSecurityGroup"
+          SubnetId: 
+            Ref: "SubnetForServer"
+#_____________________________________________________________
+#_____________________________________________________________
+
+# Security Group OF THE EC2
+  WebAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: Allow http to our test host
+        VpcId:
+          Ref: MainVPC
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+#_____________________________________________________________
+#_____________________________________________________________
+
+# IAM Role to allow EC2 Session Manager to access our server
+  RoleForSSMAccess: 
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+#_____________________________________________________________
+#_____________________________________________________________       
+  PolicyForRole:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: Rolefors3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: '*'
+            Resource: 's3'
+      Roles:
+        - !Ref RoleForSSMAccess
+#_____________________________________________________________
+#_____________________________________________________________
+# Instance Profile
+  ServerInstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Roles: 
+        - !Ref RoleForSSMAccess
+#_____________________________________________________________
+#_____________________________________________________________

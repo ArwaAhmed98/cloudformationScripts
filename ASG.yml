@@ -69,7 +69,7 @@ WebAppGroup:
       UnhealthyThresholdCount: 5
       VpcId: 
         Fn::ImportValue:
-          Fn::Sub: "${EnvironmentName}-VPCID"
+          Fn::Sub: "${EnvironmentName}-MainVPC"
 ########### LB ##########
   WebAppLB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
