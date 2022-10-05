@@ -1,0 +1,99 @@
+Parameters:
+  myLaunchTemplateVersionNumber:
+    Type: String
+    Default: 1
+    Description: the number of servers to be launched by default
+  EnvironmentName:
+    Type: String
+    Description: the env name value
+Outputs:
+  ALBDNS:
+    Value: !GetAtt WebAppLB.DNSName
+
+# Template to start from here the ASG 
+Resources:
+  WebAppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      UserData:
+        Fn::Base64: !Sub |
+       #!/bin/bash
+       # Install docker
+       apt-get update
+       apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+       add-apt-repository \
+       "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+       $(lsb_release -cs) \
+       stable"
+       apt-get update
+       apt-get install -y docker-ce
+       usermod -aG docker ubuntu
+       docker run -p 8080:8080 tomcat:8.0
+     ImageId: ami-0ee23bfc74a881de5
+     KeyName: VocareumKey2
+     SecurityGroupIds:
+       - sg-020ac9d8f54335c66 # needed to be replaced every time of destroy and apply
+     InstanceType: t2.medium
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sdk"
+        Ebs:
+          VolumeSize: '10'
+################## START THE AUTO SCALING GROUP ############
+WebAppGroup:
+ Type: AWS::AutoScaling::AutoScalingGroup
+ Properties:
+   VPCZoneIdentifier:
+   - Fn::ImportValue: 
+       !Sub "${EnvironmentName}-PRIV-NETS"
+   LaunchTemplate:
+     LaunchTemplateId: !Ref myWebAppLaunchTemplate
+     Version: !Ref myLaunchTemplateVersionNumber
+   MinSize: '1'
+   MaxSize: '2'
+   TargetGroupARNs:
+   - Ref: WebAppTargetGroup
+### THE ASG  =>  =>  =>  Launch config/tempelate
+### THE LB   =>  =>  =>  Target Group
+############# start the load balancer section here ############
+  WebAppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 8
+      HealthyThresholdCount: 2
+      Port: 8080
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId: 
+        Fn::ImportValue:
+          Fn::Sub: "${EnvironmentName}-VPCID"
+########### LB ##########
+  WebAppLB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+      - Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
+      - Fn::ImportValue: !Sub "${EnvironmentName}-PUB2-SN"
+      SecurityGroups:
+      - Ref: LBSecGroup
+####### LBSecGroup ########
+LBSecGroup:
+ Type: AWS::EC2::SecurityGroup
+ Properties:
+   GroupDescription: Allow http to load balancer
+   VpcId:
+     Fn::ImportValue:
+       !Sub "${EnvironmentName}-VPCID"
+   SecurityGroupIngress:
+   - IpProtocol: tcp
+     FromPort: 8080
+     ToPort: 8080
+     CidrIp: 0.0.0.0/0
+   SecurityGroupEgress:
+   - IpProtocol: tcp
+     FromPort: 8080
+     ToPort: 8080
+     CidrIp: 0.0.0.0/0
