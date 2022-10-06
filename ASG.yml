@@ -17,28 +17,39 @@ Resources:
     Properties:
       UserData:
         Fn::Base64: !Sub |
-       #!/bin/bash
-       # Install docker
-       apt-get update
-       apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-       add-apt-repository \
-       "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-       $(lsb_release -cs) \
-       stable"
-       apt-get update
-       apt-get install -y docker-ce
-       usermod -aG docker ubuntu
-       docker run -p 8080:8080 tomcat:8.0
+          #!/bin/bash
+          apt-get update -y
+          apt-get install apache2 -y
+          systemctl start apache2.service
+          cd /var/www/html
+          echo "it works! Udagram, Udacity” > index.html
      ImageId: ami-0ee23bfc74a881de5
      KeyName: VocareumKey2
      SecurityGroupIds:
-       - sg-020ac9d8f54335c66 # needed to be replaced every time of destroy and apply
-     InstanceType: t2.medium
+       - !Ref WebAccessSecurityGroup # needed to be replaced every time of destroy and apply
+     InstanceType: t3.small
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
           VolumeSize: '10'
+   ############################################# secuirty group ###################################################
+    WebAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: Allow http to our test host
+        VpcId:
+          Ref: MainVPC
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+     ############################################# secuirty group ###################################################
 ################## START THE AUTO SCALING GROUP ############
 WebAppGroup:
  Type: AWS::AutoScaling::AutoScalingGroup
@@ -49,8 +60,8 @@ WebAppGroup:
    LaunchTemplate:
      LaunchTemplateId: !Ref myWebAppLaunchTemplate
      Version: !Ref myLaunchTemplateVersionNumber
-   MinSize: '1'
-   MaxSize: '2'
+   MinSize: '2'
+   MaxSize: '4'
    TargetGroupARNs:
    - Ref: WebAppTargetGroup
 ### THE ASG  =>  =>  =>  Launch config/tempelate
@@ -89,11 +100,12 @@ LBSecGroup:
        !Sub "${EnvironmentName}-VPCID"
    SecurityGroupIngress:
    - IpProtocol: tcp
-     FromPort: 8080
-     ToPort: 8080
+     FromPort: 80
+     ToPort: 80
      CidrIp: 0.0.0.0/0
    SecurityGroupEgress:
    - IpProtocol: tcp
-     FromPort: 8080
-     ToPort: 8080
+     FromPort: 80
+     ToPort: 80
      CidrIp: 0.0.0.0/0
+ 
