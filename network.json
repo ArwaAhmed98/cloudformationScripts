@@ -20,14 +20,6 @@
         "ParameterValue": "10.0.2.0/24"
       },
       {
-        "ParameterKey": "MainVPC",
-        "ParameterValue": "vpc-049aec40a1d6c62ad" // must be changed
-      },
-      {
-        "ParameterKey": "SubnetForServer", 
-        "ParameterValue": "subnet-086fb2bdbcbd5fd67"  // must be changed
-      },
-      {
         "ParameterKey": "AMItoUse",
         "ParameterValue": "ami-0ee23bfc74a881de5"
       }

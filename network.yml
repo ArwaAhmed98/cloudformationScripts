@@ -26,11 +26,17 @@ Description: Creates the required network infrastructure for Public and Private 
 #_____________________________________________________________
 
 Parameters:
-  VPCCIDR:
+  Pub1SubnetCIDR:
     Type: String
-  PrivSubnetCIDR:
+  Priv1SubnetCIDR:
     Type: String
-  PubSubnetCIDR:
+  Pub2SubnetCIDR:
+    Type: String
+  Priv2SubnetCIDR:
+    Type: String
+  AMItoUse:
+    Type: String
+  MainVPCCIDR:
     Type: String
 #_____________________________________________________________
 #_____________________________________________________________
@@ -230,46 +236,8 @@ NatGateway2EIP:
 #_____________________________________________________________
 #_____________________________________________________________
 
-## ec2 located in the private subnet 
-# Server EC2 Instance ITSELF IS HEREEEEE 
-  ServerInstance: 
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: t2.medium
-      ImageId: !Ref AMItoUse
-      IamInstanceProfile: !Ref ServerInstanceProfile
-      NetworkInterfaces: 
-        - AssociatePublicIpAddress: "true"
-          DeviceIndex: "0"
-          GroupSet: 
-            - Ref: "WebAccessSecurityGroup"
-          SubnetId: 
-            Ref: "SubnetForServer"
-#_____________________________________________________________
-#_____________________________________________________________
-
-# Security Group OF THE EC2
-  WebAccessSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-        GroupDescription: Allow http to our test host
-        VpcId:
-          Ref: MainVPC
-        SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        SecurityGroupEgress:
-        - IpProtocol: -1
-          FromPort: -1
-          ToPort: -1
-          CidrIp: 0.0.0.0/0
-#_____________________________________________________________
-#_____________________________________________________________
-
 # IAM Role to allow EC2 Session Manager to access our server
-  RoleForSSMAccess: 
+  RoleForS3: 
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -281,8 +249,9 @@ NatGateway2EIP:
                 - ec2.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+              
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 #_____________________________________________________________
 #_____________________________________________________________       
   PolicyForRole:
@@ -293,10 +262,14 @@ NatGateway2EIP:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Action: '*'
-            Resource: 's3'
+            Action:
+              - 's3:Get*'
+              - 's3:List*'
+              - 's3-object-lambda:Get*'
+              - 's3-object-lambda:List*'
+            Resource: '*'
       Roles:
-        - !Ref RoleForSSMAccess
+        - !Ref RoleForS3
 #_____________________________________________________________
 #_____________________________________________________________
 # Instance Profile
@@ -304,6 +277,6 @@ NatGateway2EIP:
     Type: "AWS::IAM::InstanceProfile"
     Properties: 
       Roles: 
-        - !Ref RoleForSSMAccess
+        - !Ref RoleForS3
 #_____________________________________________________________
 #_____________________________________________________________
