@@ -26,17 +26,19 @@ Description: Creates the required network infrastructure for Public and Private 
 #_____________________________________________________________
 
 Parameters:
-  Pub1SubnetCIDR:
+  PrivateSubnet2:
     Type: String
-  Priv1SubnetCIDR:
+  PublicSubnet1:
     Type: String
-  Pub2SubnetCIDR:
+  PrivateSubnet1:
     Type: String
-  Priv2SubnetCIDR:
+  PublicSubnet2:
     Type: String
   AMItoUse:
     Type: String
   MainVPCCIDR:
+    Type: String
+  EnvironmentName:
     Type: String
 #_____________________________________________________________
 #_____________________________________________________________
@@ -49,9 +51,8 @@ Resources:
     Properties: 
       CidrBlock: !Ref VPCCIDR
       EnableDnsHostnames: true
-      Tags: 
-        - Key: Name
-          Value: "Main VPC"
+      
+        
 #_____________________________________________________________
 #_____________________________________________________________
 
@@ -62,9 +63,6 @@ Resources:
 
   AttachInternetGateway:
     Type: AWS::EC2::VPCGatewayAttachment
-    Tags: 
-        - Key: Name
-          Value: "MY IGW"
     Properties:
       VpcId: !Ref MainVPC
       InternetGatewayId: !Ref InternetGW
@@ -79,9 +77,6 @@ Resources:
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
       CidrBlock: !Ref Pub1SubnetCIDR
       MapPublicIpOnLaunch: true
-      Tags: 
-        - Key: Name
-          Value: "Public Subnet AZ1"
       VpcId: !Ref MainVPC
 #_____________________________________________________________
 #_____________________________________________________________
@@ -94,9 +89,6 @@ Resources:
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
       CidrBlock: !Ref Pub2SubnetCIDR
       MapPublicIpOnLaunch: true
-      Tags: 
-        - Key: Name
-          Value: "Public Subnet AZ1"
       VpcId: !Ref MainVPC
 #_____________________________________________________________
 #_____________________________________________________________
@@ -107,9 +99,6 @@ Resources:
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
       CidrBlock: !Ref Priv1SubnetCIDR
       MapPublicIpOnLaunch: false
-      Tags: 
-        - Key: Name
-          Value: "Private Subnet AZ1"
       VpcId: !Ref MainVPC
 #_____________________________________________________________
 #_____________________________________________________________
@@ -120,9 +109,6 @@ Resources:
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
       CidrBlock: !Ref Priv2SubnetCIDR
       MapPublicIpOnLaunch: false
-      Tags: 
-        - Key: Name
-          Value: "Private Subnet AZ1"
       VpcId: !Ref MainVPC
 #_____________________________________________________________
 #_____________________________________________________________ 
@@ -135,10 +121,7 @@ Resources:
           - EIP
           - AllocationId
         SubnetId: !Ref PublicSubnet1
-        Tags:
-        - Key: Name
-          Value: "NAT to be used by servers in the private subnet"
-#_____________________________________________________________
+#_________________________________________________
 #_____________________________________________________________
 
   NatGateway1: 
@@ -162,7 +145,7 @@ NatGateway1EIP:
           Domain: vpc
 #_____________________________________________________________
 
-  NatGateway2EIP:
+NatGateway2EIP:
       Type: AWS::EC2::EIP
       DependsOn: InternetGatewayAttachment
       Properties:
@@ -178,27 +161,21 @@ NatGateway2EIP:
 #_____________________________________________________________
 #_____________________________________________________________
 
-  PrivateRouteTable:
+PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties: 
-      Tags: 
-        - Key: Name
-          Value: "Private Route Table"
       VpcId: !Ref MainVPC
 #_____________________________________________________________
 #_____________________________________________________________
 
-  PublicRouteTable:
+PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties: 
-      Tags: 
-        - Key: Name
-          Value: "Public Route Table"
       VpcId: !Ref MainVPC
   #_____________________________________________________________
   #_____________________________________________________________
 
-  AssociatePUBRT:
+AssociatePUBRT:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref PublicRouteTable
@@ -206,7 +183,7 @@ NatGateway2EIP:
 #_____________________________________________________________
 #_____________________________________________________________
 
-  AssociatePRIVRT:
+AssociatePRIVRT:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref PrivateRouteTable
@@ -214,7 +191,7 @@ NatGateway2EIP:
 #_____________________________________________________________
 #_____________________________________________________________
 
-  PublicInternetRoute:
+PublicInternetRoute:
     Type: AWS::EC2::Route
     Properties:
        RouteTableId:
@@ -225,7 +202,7 @@ NatGateway2EIP:
 #_____________________________________________________________
 #_____________________________________________________________
 
-  PrivateInternetOutboundRoute:
+PrivateInternetOutboundRoute:
     Type: AWS::EC2::Route
     Properties:
        RouteTableId:
@@ -237,7 +214,7 @@ NatGateway2EIP:
 #_____________________________________________________________
 
 # IAM Role to allow EC2 Session Manager to access our server
-  RoleForS3: 
+RoleForS3: 
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -254,7 +231,7 @@ NatGateway2EIP:
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 #_____________________________________________________________
 #_____________________________________________________________       
-  PolicyForRole:
+PolicyForRole:
     Type: 'AWS::IAM::Policy'
     Properties:
       PolicyName: Rolefors3
@@ -273,7 +250,7 @@ NatGateway2EIP:
 #_____________________________________________________________
 #_____________________________________________________________
 # Instance Profile
-  ServerInstanceProfile: 
+ServerInstanceProfile: 
     Type: "AWS::IAM::InstanceProfile"
     Properties: 
       Roles: 
