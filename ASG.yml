@@ -120,3 +120,50 @@ LBSecGroup:
      ToPort: 80
      CidrIp: 0.0.0.0/0
  
+#_____________________________________________________________
+#_____________________________________________________________
+
+# IAM Role to allow EC2 Session Manager to access our server
+RoleForS3: 
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+              
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+#_____________________________________________________________
+#_____________________________________________________________       
+PolicyForRole:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: Rolefors3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 's3:Get*'
+              - 's3:List*'
+              - 's3-object-lambda:Get*'
+              - 's3-object-lambda:List*'
+            Resource: '*'
+      Roles:
+        - !Ref RoleForS3
+#_____________________________________________________________
+#_____________________________________________________________
+# Instance Profile
+ServerInstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Roles: 
+        - !Ref RoleForS3
+#_____________________________________________________________
+#_____________________________________________________________

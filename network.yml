@@ -7,15 +7,15 @@
 Outputs:
   MainVPC:
     Description: A CIRD for the created MainVPC
-    Value: !Ref MainVPCCIDR
+    Value: !Ref MainVPC
     EXPORT:
       Name: !Sub ${EnvironmentName}-MainVPC
   PublicSubnet1:
     Description: A CIRD for the SUBNET
-    Value: !Ref Pub1SubnetCIDR
+    Value: !Ref PublicSubnet1
     EXPORT:
-      Name: !Sub ${EnvironmentName}-Pub1SubnetCIDR
-      #mmkn tb2a !ref L Pub1SubnetCIDR da ?
+      Name: !Sub ${EnvironmentName}-PublicSubnet1
+     
 
 #_____________________________________________________________
 #_____________________________________________________________
@@ -36,7 +36,7 @@ Parameters:
     Type: String
   AMItoUse:
     Type: String
-  MainVPCCIDR:
+  MainVPC:
     Type: String
   EnvironmentName:
     Type: String
@@ -49,9 +49,10 @@ Resources:
   MainVPC:
     Type: AWS::EC2::VPC
     Properties: 
-      CidrBlock: !Ref VPCCIDR
+      CidrBlock: !Ref MainVPC
       EnableDnsHostnames: true
       
+        
         
 #_____________________________________________________________
 #_____________________________________________________________
@@ -75,7 +76,7 @@ Resources:
       # Availability zone at your discretion or
       # as a parameter
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      CidrBlock: !Ref Pub1SubnetCIDR
+      CidrBlock: !Ref PublicSubnet1
       MapPublicIpOnLaunch: true
       VpcId: !Ref MainVPC
 #_____________________________________________________________
@@ -87,7 +88,7 @@ Resources:
       # Availability zone at your discretion or
       # as a parameter
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
-      CidrBlock: !Ref Pub2SubnetCIDR
+      CidrBlock: !Ref PublicSubnet2
       MapPublicIpOnLaunch: true
       VpcId: !Ref MainVPC
 #_____________________________________________________________
@@ -97,7 +98,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      CidrBlock: !Ref Priv1SubnetCIDR
+      CidrBlock: !Ref PublicSubnet1
       MapPublicIpOnLaunch: false
       VpcId: !Ref MainVPC
 #_____________________________________________________________
@@ -107,20 +108,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
-      CidrBlock: !Ref Priv2SubnetCIDR
+      CidrBlock: !Ref PrivateSubnet2
       MapPublicIpOnLaunch: false
       VpcId: !Ref MainVPC
-#_____________________________________________________________
-#_____________________________________________________________ 
 
-  NAT1:
-    Type: AWS::EC2::NatGateway
-    Properties:
-        AllocationId:
-          Fn::GetAtt:
-          - EIP
-          - AllocationId
-        SubnetId: !Ref PublicSubnet1
 #_________________________________________________
 #_____________________________________________________________
 
@@ -160,100 +151,37 @@ NatGateway2EIP:
           Domain: vpc
 #_____________________________________________________________
 #_____________________________________________________________
-
-PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties: 
-      VpcId: !Ref MainVPC
-#_____________________________________________________________
-#_____________________________________________________________
-
 PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties: 
-      VpcId: !Ref MainVPC
-  #_____________________________________________________________
-  #_____________________________________________________________
+        VpcId: !Ref MainVPC
+        Tags: 
+            - Key: Name 
+              Value: !Sub ${EnvironmentName} Public Routes
 
-AssociatePUBRT:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties: 
-      RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnet1
-#_____________________________________________________________
-#_____________________________________________________________
-
-AssociatePRIVRT:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties: 
-      RouteTableId: !Ref PrivateRouteTable
-      SubnetId: !Ref PrivateSubnet1
-#_____________________________________________________________
-#_____________________________________________________________
-
-PublicInternetRoute:
+DefaultPublicRoute: 
     Type: AWS::EC2::Route
-    Properties:
-       RouteTableId:
-         Ref: PublicRouteTable
-       DestinationCidrBlock: 0.0.0.0/0
-       GatewayId:
-         Ref: InternetGW
-#_____________________________________________________________
-#_____________________________________________________________
-
-PrivateInternetOutboundRoute:
-    Type: AWS::EC2::Route
-    Properties:
-       RouteTableId:
-         Ref: PrivateRouteTable
-       DestinationCidrBlock: 0.0.0.0/0
-       NatGatewayId:
-         Ref: NAT
-#_____________________________________________________________
-#_____________________________________________________________
-
-# IAM Role to allow EC2 Session Manager to access our server
-RoleForS3: 
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-              
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
-#_____________________________________________________________
-#_____________________________________________________________       
-PolicyForRole:
-    Type: 'AWS::IAM::Policy'
-    Properties:
-      PolicyName: Rolefors3
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - 's3:Get*'
-              - 's3:List*'
-              - 's3-object-lambda:Get*'
-              - 's3-object-lambda:List*'
-            Resource: '*'
-      Roles:
-        - !Ref RoleForS3
-#_____________________________________________________________
-#_____________________________________________________________
-# Instance Profile
-ServerInstanceProfile: 
-    Type: "AWS::IAM::InstanceProfile"
+    DependsOn: InternetGatewayAttachment
     Properties: 
-      Roles: 
-        - !Ref RoleForS3
-#_____________________________________________________________
-#_____________________________________________________________
+        RouteTableId: !Ref PublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref InternetGateway
+
+PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+        RouteTableId: !Ref PublicRouteTable
+        SubnetId: !Ref PublicSubnet1
+
+PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+        RouteTableId: !Ref PublicRouteTable
+        SubnetId: !Ref PublicSubnet2
+
+
+PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+        VpcId: !Ref MainVPC
+        
