@@ -1,17 +1,61 @@
+Description: >
+    Carlos Rivas / Udacity 2019
 Parameters:
-  myLaunchTemplateVersionNumber:
-    Type: String
-    Default: 1
-    Description: the number of servers to be launched by default
-  EnvironmentName:
-    Type: String
-    Description: the env name value
-Outputs:
-  ALBDNS:
-    Value: !GetAtt WebAppLB.DNSName
-
-# Template to start from here the ASG 
+    EnvironmentName:
+        Description: An environment name that will be prefixed to resource names
+        Type: String
+    MyAMI:
+        Description: ami to use
+        Type: String
+    InstanceClass:
+        Description: t2 or t3 or what dot which class to be chosen
+        Type: String
+    MyIamRole:
+        Description: role name indicates the service
+        Type: String
+    NameOfPolicy:
+        Description: policy name
+        Type: String
+        Default: AmazonS3ReadOnlyAccess
 Resources:
+  LBSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to our load balancer
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+  WebServerSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to our hosts and SSH from local only
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -22,66 +66,30 @@ Resources:
           apt-get install apache2 -y
           systemctl start apache2.service
           cd /var/www/html
-          echo "it works! Udagram, Udacity” > index.html
-     ImageId: ami-0ee23bfc74a881de5
-     KeyName: VocareumKey2
-     SecurityGroupIds:
-       - !Ref WebAccessSecurityGroup # needed to be replaced every time of destroy and apply
-     InstanceType: t3.small
+          echo "it works! Udagram, Udacity” > index.html        
+      # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
+      ImageId: ami-0ee23bfc74a881de5
+      # ToDo: Change the key-pair name, as applicable to you. 
+      KeyName: VocareumKey2
+      SecurityGroups:
+      - Ref: WebServerSecGroup
+      InstanceType: !Ref InstanceClass #t3.small
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
           VolumeSize: '10'
-   ############################################# secuirty group ###################################################
-    WebAccessSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+  WebAppGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-        GroupDescription: Allow http to our test host
-        VpcId:
-          Ref: MainVPC
-        SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 0
-          ToPort: 65535
-          CidrIp: 0.0.0.0/0
-     ############################################# secuirty group ###################################################
-################## START THE AUTO SCALING GROUP ############
-WebAppGroup:
- Type: AWS::AutoScaling::AutoScalingGroup
- Properties:
-   VPCZoneIdentifier:
-   - Fn::ImportValue: 
-       !Sub "${EnvironmentName}-PRIV-NETS"
-   LaunchTemplate:
-     LaunchTemplateId: !Ref myWebAppLaunchTemplate
-     Version: !Ref myLaunchTemplateVersionNumber
-   MinSize: '2'
-   MaxSize: '4'
-   TargetGroupARNs:
-   - Ref: WebAppTargetGroup
-### THE ASG  =>  =>  =>  Launch config/tempelate
-### THE LB   =>  =>  =>  Target Group
-############# start the load balancer section here ############
-  WebAppTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckIntervalSeconds: 10
-      HealthCheckPath: /
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 8
-      HealthyThresholdCount: 2
-      Port: 80
-      Protocol: HTTP
-      UnhealthyThresholdCount: 5
-      VpcId: 
-        Fn::ImportValue:
-          Fn::Sub: "${EnvironmentName}-MainVPC"
-########### LB ##########
+      VPCZoneIdentifier:
+      - Fn::ImportValue: 
+          !Sub "${EnvironmentName}-PRIV-NETS"
+      LaunchConfigurationName:
+        Ref: WebAppLaunchConfig
+      MinSize: '2'
+      MaxSize: '4'
+      TargetGroupARNs:
+      - Ref: WebAppTargetGroup
   WebAppLB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -101,25 +109,31 @@ WebAppGroup:
         Ref: WebAppLB
       Port: '80'
       Protocol: HTTP
-####### LBSecGroup ########
-LBSecGroup:
- Type: AWS::EC2::SecurityGroup
- Properties:
-   GroupDescription: Allow http to load balancer
-   VpcId:
-     Fn::ImportValue:
-       !Sub "${EnvironmentName}-VPCID"
-   SecurityGroupIngress:
-   - IpProtocol: tcp
-     FromPort: 80
-     ToPort: 80
-     CidrIp: 0.0.0.0/0
-   SecurityGroupEgress:
-   - IpProtocol: tcp
-     FromPort: 80
-     ToPort: 80
-     CidrIp: 0.0.0.0/0
- 
+  ALBListenerRule:
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        Actions:
+        - Type: forward
+          TargetGroupArn: !Ref 'WebAppTargetGroup'
+        Conditions:
+        - Field: path-pattern
+          Values: [/]
+        ListenerArn: !Ref 'Listener'
+        Priority: 1
+  WebAppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 8
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId: 
+        Fn::ImportValue:
+          Fn::Sub: "${EnvironmentName}-VPCID"
 #_____________________________________________________________
 #_____________________________________________________________
 
@@ -136,27 +150,22 @@ RoleForS3:
                 - ec2.amazonaws.com
             Action:
               - 'sts:AssumeRole'
-              
+      Policies:
+        - PolicyName: !Ref NameOfPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 's3:Get*'
+                  - 's3:List*'
+                  - 's3-object-lambda:Get*'
+                  - 's3-object-lambda:List*'
+                Resource: '*'
+                Roles:
+                  - !Ref MyIamRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
-#_____________________________________________________________
-#_____________________________________________________________       
-PolicyForRole:
-    Type: 'AWS::IAM::Policy'
-    Properties:
-      PolicyName: Rolefors3
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - 's3:Get*'
-              - 's3:List*'
-              - 's3-object-lambda:Get*'
-              - 's3-object-lambda:List*'
-            Resource: '*'
-      Roles:
-        - !Ref RoleForS3
 #_____________________________________________________________
 #_____________________________________________________________
 # Instance Profile
@@ -164,6 +173,10 @@ ServerInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties: 
       Roles: 
-        - !Ref RoleForS3
+        - !Ref MyIamRole
 #_____________________________________________________________
 #_____________________________________________________________
+
+Outputs:
+  ALBDNS:
+    Value: !GetAtt WebAppLB.DNSName
