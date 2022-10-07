@@ -10,9 +10,6 @@ Parameters:
     InstanceClass:
         Description: t2 or t3 or what dot which class to be chosen
         Type: String
-    MyIamRole:
-        Description: role name indicates the service
-        Type: String
     NameOfPolicy:
         Description: policy name
         Type: String
