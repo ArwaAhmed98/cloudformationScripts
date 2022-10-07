@@ -6,6 +6,13 @@ Parameters:
     EnvironmentName:
         Description: An environment name that will be prefixed to resource names
         Type: String
+    ClassOfInstance:
+        Type: String
+    NameOfPolicy:
+        Type: String
+    MyRoleName:
+      Type: String
+    
 Resources:
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
@@ -46,7 +53,7 @@ Resources:
         ToPort: 65535
         CidrIp: 0.0.0.0/0
   # IAM Role to allow EC2 Session Manager to access our server
-  MyUdacityS3: 
+  MyUdacityS33: 
       Type: "AWS::IAM::Role"
       Properties:
         AssumeRolePolicyDocument:
@@ -59,7 +66,7 @@ Resources:
               Action:
                 - 'sts:AssumeRole'
         Policies:
-          - PolicyName: AmazonS3ReadOnlyAccess
+          - PolicyName: !Ref NameOfPolicy
             PolicyDocument:
               Version: "2012-10-17"
               Statement:
@@ -72,19 +79,19 @@ Resources:
                   Resource: '*'
         ManagedPolicyArns:
           - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
-        RoleName:  MyUdacityS3
+        RoleName:  !Ref MyRoleName
 #_____________________
 #_____________________
 # Instance Profile
-  MyServerTemp: 
+  MyServerTempp: 
       Type: "AWS::IAM::InstanceProfile"
       Properties: 
         Roles: 
-          -  MyUdacityS3
+          -  !Ref MyRoleName
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      IamInstanceProfile: !Ref MyServerTemp
+      IamInstanceProfile: !Ref MyServerTempp
       UserData:
         Fn::Base64: !Sub |
            #!/bin/bash
@@ -100,7 +107,7 @@ Resources:
       # KeyName: VocareumKey2
       SecurityGroups:
       - Ref: WebServerSecGroup
-      InstanceType: t3.small
+      InstanceType: !Ref ClassOfInstance
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
