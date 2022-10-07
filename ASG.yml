@@ -53,6 +53,44 @@ Resources:
         FromPort: 0
         ToPort: 65535
         CidrIp: 0.0.0.0/0
+  
+# IAM Role to allow EC2 Session Manager to access our server
+  MyUdacityS3: 
+      Type: "AWS::IAM::Role"
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - ec2.amazonaws.com
+              Action:
+                - 'sts:AssumeRole'
+        Description: s3 read only access
+        Policies:
+          - PolicyName: !Ref NameOfPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: 
+                    - 's3:Get*'
+                    - 's3:List*'
+                    - 's3-object-lambda:Get*'
+                    - 's3-object-lambda:List*'
+                  Resource: '*'
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        RoleName: !Ref MyUdacityS3
+#_____________________________________________________________
+#_____________________________________________________________
+# Instance Profile
+  ToInstanceProfile: 
+      Type: "AWS::IAM::InstanceProfile"
+      Properties: 
+        Roles: 
+          - !Ref MyUdacityS3
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -134,44 +172,6 @@ Resources:
           Fn::Sub: "${EnvironmentName}-VPCID"
 #_____________________________________________________________
 #_____________________________________________________________
-
-# IAM Role to allow EC2 Session Manager to access our server
-MyUdacityS3: 
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-      Description: s3 read only access
-      Policies:
-        - PolicyName: !Ref NameOfPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action: 
-                  - 's3:Get*'
-                  - 's3:List*'
-                  - 's3-object-lambda:Get*'
-                  - 's3-object-lambda:List*'
-                Resource: '*'
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
-      RoleName: !Ref MyUdacityS3
-#_____________________________________________________________
-#_____________________________________________________________
-# Instance Profile
-ToInstanceProfile: 
-    Type: "AWS::IAM::InstanceProfile"
-    Properties: 
-      Roles: 
-        - !Ref MyUdacityS3
 #_____________________________________________________________
 #_____________________________________________________________
 
