@@ -72,7 +72,7 @@ Resources:
                   Resource: '*'
         ManagedPolicyArns:
           - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
-        RoleName: !Ref  MyUdacityS3
+        RoleName:  MyUdacityS3
 #_____________________
 #_____________________
 # Instance Profile
@@ -80,21 +80,24 @@ Resources:
       Type: "AWS::IAM::InstanceProfile"
       Properties: 
         Roles: 
-          - !Ref MyUdacityS3
+          -  MyUdacityS3
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       IamInstanceProfile: !Ref MyServerTemp
       UserData:
         Fn::Base64: !Sub |
-          #!/bin/bash
-          sudo apt-get update -y
-          sudo apt-get install apache2 -y
-          sudo systemctl start apache2.service          
+           #!/bin/bash
+           apt-get update -y
+           apt-get install apache2 -y
+           systemctl start apache2.service
+           systemctl enable apache2.service
+           cd /var/www/html
+           echo "Udacity Demo Web Server Up and Running!" > index.html         
       # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
       ImageId: ami-0ee23bfc74a881de5
       # ToDo: Change the key-pair name, as applicable to you. 
-      KeyName: VocareumKey2
+      # KeyName: VocareumKey2
       SecurityGroups:
       - Ref: WebServerSecGroup
       InstanceType: t3.small
