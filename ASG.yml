@@ -1,19 +1,11 @@
 Description: >
     Carlos Rivas / Udacity 2019
+
 Parameters:
+
     EnvironmentName:
         Description: An environment name that will be prefixed to resource names
         Type: String
-    MyAMI:
-        Description: ami to use
-        Type: String
-    InstanceClass:
-        Description: t2 or t3 or what dot which class to be chosen
-        Type: String
-    NameOfPolicy:
-        Description: policy name
-        Type: String
-        
 Resources:
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
@@ -53,8 +45,7 @@ Resources:
         FromPort: 0
         ToPort: 65535
         CidrIp: 0.0.0.0/0
-  
-# IAM Role to allow EC2 Session Manager to access our server
+  # IAM Role to allow EC2 Session Manager to access our server
   MyUdacityS3: 
       Type: "AWS::IAM::Role"
       Properties:
@@ -67,9 +58,8 @@ Resources:
                   - ec2.amazonaws.com
               Action:
                 - 'sts:AssumeRole'
-        Description: s3 read only access
         Policies:
-          - PolicyName: !Ref NameOfPolicy
+          - PolicyName: AmazonS3ReadOnlyAccess
             PolicyDocument:
               Version: "2012-10-17"
               Statement:
@@ -82,11 +72,11 @@ Resources:
                   Resource: '*'
         ManagedPolicyArns:
           - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
-        RoleName: !Ref MyUdacityS3
-#_____________________________________________________________
-#_____________________________________________________________
+        RoleName: !Ref  MyUdacityS3
+#_____________________
+#_____________________
 # Instance Profile
-  ToInstanceProfile: 
+  MyServerTemp: 
       Type: "AWS::IAM::InstanceProfile"
       Properties: 
         Roles: 
@@ -94,22 +84,20 @@ Resources:
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      IamInstanceProfile: !Ref  ToInstanceProfile
+      IamInstanceProfile: !Ref MyServerTemp
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          apt-get update -y
-          apt-get install apache2 -y
-          systemctl start apache2.service
-          cd /var/www/html
-          echo "it works! Udagram, Udacity” > index.html        
+          sudo apt-get update -y
+          sudo apt-get install apache2 -y
+          sudo systemctl start apache2.service          
       # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
       ImageId: ami-0ee23bfc74a881de5
       # ToDo: Change the key-pair name, as applicable to you. 
       KeyName: VocareumKey2
       SecurityGroups:
       - Ref: WebServerSecGroup
-      InstanceType: !Ref InstanceClass #t3.small
+      InstanceType: t3.small
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
@@ -170,11 +158,3 @@ Resources:
       VpcId: 
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
-#_____________________________________________________________
-#_____________________________________________________________
-#_____________________________________________________________
-#_____________________________________________________________
-
-Outputs:
-  ALBDNS:
-    Value: !GetAtt WebAppLB.DNSName

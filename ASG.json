@@ -2,18 +2,5 @@
     {
         "ParameterKey": "EnvironmentName",
         "ParameterValue": "UdacityProject"
-      },
-     
-      {
-        "ParameterKey": "InstanceClass",
-        "ParameterValue": "t3.small"
-      },
-      {
-        "ParameterKey": "MyAMI",
-        "ParameterValue": "ami-0ee23bfc74a881de5"
-      },
-      {
-        "ParameterKey": "NameOfPolicy",
-        "ParameterValue": "AmazonS3ReadOnlyAccess"
-      }
-]
+    }
+  ]
