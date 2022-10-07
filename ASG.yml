@@ -163,8 +163,7 @@ RoleForS3:
                   - 's3-object-lambda:Get*'
                   - 's3-object-lambda:List*'
                 Resource: '*'
-                Roles:
-                  - !Ref RoleForS3
+      RoleName: !Ref RoleForS3
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 #_____________________________________________________________
