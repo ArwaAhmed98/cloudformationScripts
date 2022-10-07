@@ -13,7 +13,7 @@ Parameters:
     NameOfPolicy:
         Description: policy name
         Type: String
-        Default: AmazonS3ReadOnlyAccess
+        
 Resources:
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
@@ -56,7 +56,7 @@ Resources:
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      IamInstanceProfile: !Ref  ServerInstanceProfile
+      IamInstanceProfile: !Ref  ToInstanceProfile
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -136,7 +136,7 @@ Resources:
 #_____________________________________________________________
 
 # IAM Role to allow EC2 Session Manager to access our server
-RoleForS3: 
+MyUdacityS3: 
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -148,6 +148,7 @@ RoleForS3:
                 - ec2.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+      Description: s3 read only access
       Policies:
         - PolicyName: !Ref NameOfPolicy
           PolicyDocument:
@@ -160,17 +161,17 @@ RoleForS3:
                   - 's3-object-lambda:Get*'
                   - 's3-object-lambda:List*'
                 Resource: '*'
-      RoleName: !Ref RoleForS3
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      RoleName: !Ref MyUdacityS3
 #_____________________________________________________________
 #_____________________________________________________________
 # Instance Profile
-ServerInstanceProfile: 
+ToInstanceProfile: 
     Type: "AWS::IAM::InstanceProfile"
     Properties: 
       Roles: 
-        - !Ref RoleForS3
+        - !Ref MyUdacityS3
 #_____________________________________________________________
 #_____________________________________________________________
 

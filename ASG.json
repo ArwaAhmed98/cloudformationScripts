@@ -3,10 +3,7 @@
         "ParameterKey": "EnvironmentName",
         "ParameterValue": "UdacityProject"
       },
-      {
-        "ParameterKey": "MyIamRole",
-        "ParameterValue": "RoleForS3"
-      },
+     
       {
         "ParameterKey": "InstanceClass",
         "ParameterValue": "t3.small"
