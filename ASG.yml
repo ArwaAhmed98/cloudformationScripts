@@ -12,6 +12,8 @@ Parameters:
         Type: String
     MyRoleName:
       Type: String
+    DNS:
+      Type: String
     
 Resources:
   LBSecGroup:
@@ -168,3 +170,9 @@ Resources:
       VpcId: 
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
+
+  Outputs:
+    WebAppLB:
+      Value: !Ref DNS
+      Export:
+        Name: !Sub "${EnvironmentName}-DNS"

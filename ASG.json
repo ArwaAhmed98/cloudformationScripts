@@ -14,5 +14,9 @@
     {
       "ParameterKey": "MyRoleName",
       "ParameterValue": "MyUdacityS33"
+    },
+    {
+      "ParameterKey": "DNS",
+      "ParameterValue": "ahm-WebAppL-15JWO445C3277-1983259335.us-east-1.elb.amazonaws.com"
     }
   ]
